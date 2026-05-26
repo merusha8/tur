@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum BookingType {
+  FLIGHT
+  HOTEL
+  TOUR
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  password       String
+  firstName      String
+  lastName       String
+  phone          String?
+  address        String?
+  dateOfBirth    DateTime?
+  avatar         String?
+  role           Role            @default(USER)
+  banned         Boolean         @default(false)
+  emailVerified  Boolean         @default(false)
+  verifyCode     String?
+  resetToken     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  bookings       Booking[]
+  favorites      Favorite[]
+  reviews        Review[]
+  notifications  Notification[]
+  paymentMethods PaymentMethod[]
+  payments       Payment[]
+}
+
+model Country {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  code         String    @unique
+  flag         String
+  currency     String
+  language     String
+  visaRequired Boolean   @default(false)
+  description  String
+  cities       City[]
+  airports     Airport[]
+  tours        Tour[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([name])
+  @@index([code])
+  @@index([visaRequired])
+}
+
+model City {
+  id          String        @id @default(cuid())
+  countryId   String
+  country     Country       @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String        @unique
+  airportCode String?
+  image       String
+  popular     Boolean       @default(false)
+  latitude    Float?
+  longitude   Float?
+  airports    Airport[]
+  hotels      Hotel[]
+  tours       Tour[]
+  resorts     Resort[]
+  destination Destination?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([countryId, name])
+  @@index([countryId])
+  @@index([name])
+  @@index([popular])
+  @@index([airportCode])
+}
+
+model Airport {
+  id                String   @id @default(cuid())
+  iataCode          String   @unique
+  icaoCode          String?
+  name              String
+  cityId            String?
+  city              City?    @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  countryId         String
+  country           Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  latitude          Float?
+  longitude         Float?
+  isInternational   Boolean  @default(true)
+  originFlights     Flight[] @relation("FlightOrigin")
+  destinationFlights Flight[] @relation("FlightDestination")
+  createdAt         DateTime @default(now())
+
+  @@index([countryId])
+  @@index([cityId])
+  @@index([name])
+}
+
+model VacationCategory {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  nameRu      String?
+  description String?
+  icon        String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Resort {
+  id          String   @id @default(cuid())
+  cityId      String
+  city        City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  name        String
+  beachType   String
+  description String
+  images      String[]
+  rating      Float    @default(4.5)
+  hotels      Hotel[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([cityId])
+  @@index([beachType])
+  @@index([rating])
+}
+
+model Flight {
+  id                   String    @id @default(cuid())
+  airline              String
+  airlineLogo          String?
+  flightNumber         String
+  origin               String
+  originCode           String
+  destination          String
+  destinationCode      String
+  originAirportId      String?
+  originAirport        Airport?  @relation("FlightOrigin", fields: [originAirportId], references: [id], onDelete: SetNull)
+  destinationAirportId String?
+  destinationAirport   Airport?  @relation("FlightDestination", fields: [destinationAirportId], references: [id], onDelete: SetNull)
+  departureTime        DateTime
+  arrivalTime          DateTime
+  duration             Int
+  price                Float
+  class                String    @default("Economy")
+  stops                Int       @default(0)
+  amenities            String[]
+  aircraft             String?
+  image                String?
+  rating               Float     @default(4.5)
+  availableSeats       Int       @default(100)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  bookings             Booking[]
+  favorites            Favorite[]
+  reviews              Review[]
+
+  @@index([originCode])
+  @@index([destinationCode])
+  @@index([price])
+}
+
+model Destination {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  country     String
+  description String
+  heroImage   String
+  images      String[]
+  categories  String[]
+  rating      Float    @default(4.5)
+  reviewCount Int      @default(0)
+  latitude    Float?
+  longitude   Float?
+  faq         Json?
+  featured    Boolean  @default(false)
+  cityId      String?  @unique
+  city        City?    @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reviews     Review[]
+}
+
+model Tour {
+  id             String   @id @default(cuid())
+  countryId      String
+  country        Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cityId         String
+  city           City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  hotelId        String
+  hotel          Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  title          String
+  description    String
+  duration       Int
+  departureDate  DateTime
+  returnDate     DateTime
+  price          Float
+  oldPrice       Float?
+  hotTour        Boolean  @default(false)
+  allInclusive   Boolean  @default(false)
+  availableSeats Int      @default(20)
+  airline        String
+  images         String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  bookings       Booking[]
+  reviews        Review[]
+  favorites      Favorite[]
+  hotTourDeal    HotTour? @relation("HotTourDeal")
+
+  @@index([countryId])
+  @@index([cityId])
+  @@index([hotelId])
+  @@index([price])
+  @@index([departureDate])
+  @@index([hotTour])
+}
+
+model HotTour {
+  id              String   @id @default(cuid())
+  tourId          String   @unique
+  tour            Tour     @relation("HotTourDeal", fields: [tourId], references: [id], onDelete: Cascade)
+  originalPrice   Float
+  discountedPrice Float
+  discountPercent Int
+  validFrom       DateTime
+  validUntil      DateTime
+  departureCity   String
+  nights          Int
+  mealPlan        String   @default("All Inclusive")
+  lastMinute      Boolean  @default(false)
+  seatsLeft       Int      @default(10)
+  isActive        Boolean  @default(true)
+  featured        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([isActive, featured])
+  @@index([validUntil])
+  @@index([lastMinute])
+  @@index([discountPercent])
+}
+
+model Hotel {
+  id            String   @id @default(cuid())
+  cityId        String
+  city          City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  resortId      String?
+  resort        Resort?  @relation(fields: [resortId], references: [id], onDelete: SetNull)
+  name          String
+  stars         Int      @default(3)
+  rating        Float    @default(4.5)
+  reviewsCount  Int      @default(0)
+  amenities     String[]
+  mealType      String
+  roomTypes     String[]
+  images        String[]
+  coordinates   Json
+  pricePerNight Float
+  tours         Tour[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  bookings      Booking[]
+  favorites     Favorite[]
+  reviews       Review[]
+
+  @@index([cityId])
+  @@index([resortId])
+  @@index([pricePerNight])
+  @@index([rating])
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  userId     String
+  type       BookingType
+  status     BookingStatus @default(PENDING)
+  flightId   String?
+  hotelId    String?
+  tourId     String?
+  checkIn    DateTime?
+  checkOut   DateTime?
+  guests     Int           @default(1)
+  passengers Int           @default(1)
+  totalPrice Float
+  reference  String        @unique
+  metadata   Json?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flight     Flight?       @relation(fields: [flightId], references: [id])
+  hotel      Hotel?        @relation(fields: [hotelId], references: [id])
+  tour       Tour?         @relation(fields: [tourId], references: [id])
+  payment    Payment?
+}
+
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  userId    String
+  stripeId  String?
+  brand     String
+  last4     String
+  expMonth  Int
+  expYear   Int
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  bookingId       String        @unique
+  amount          Float
+  currency        String        @default("usd")
+  status          PaymentStatus @default(PENDING)
+  stripePaymentId String?
+  stripeIntentId  String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  flightId  String?
+  hotelId   String?
+  tourId    String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flight    Flight?  @relation(fields: [flightId], references: [id], onDelete: Cascade)
+  hotel     Hotel?   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  tour      Tour?    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, flightId])
+  @@unique([userId, hotelId])
+  @@unique([userId, tourId])
+}
+
+model Review {
+  id            String       @id @default(cuid())
+  userId        String
+  flightId      String?
+  hotelId       String?
+  tourId        String?
+  destinationId String?
+  rating        Int
+  title         String?
+  comment       String
+  pros          String[]     @default([])
+  cons          String[]     @default([])
+  images        String[]     @default([])
+  location      String?
+  imageUrl      String?
+  verified      Boolean      @default(false)
+  featured      Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flight        Flight?      @relation(fields: [flightId], references: [id], onDelete: Cascade)
+  hotel         Hotel?       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  tour          Tour?        @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  destination   Destination? @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([tourId])
+  @@index([rating])
+  @@index([verified])
+  @@index([createdAt])
+}
+
+model SearchLocation {
+  id        String   @id @default(cuid())
+  name      String
+  country   String
+  type      String   @default("city")
+  slug      String?
+  cityId    String?
+  createdAt DateTime @default(now())
+
+  @@index([name])
+}
+
+model PromoBanner {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  image       String
+  href        String
+  buttonText  String
+  icon        String   @default("Plane")
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model SiteSetting {
+  key   String @id
+  value String
+}
+
+model ContactInquiry {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  type      String   @default("info")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model ExternalOffer {
+  id        String   @id
+  type      String
+  provider  String
+  payload   Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([type, expiresAt])
+  @@index([provider])
+}
+
+model NewsletterSubscription {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

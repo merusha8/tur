@@ -1,0 +1,18 @@
+{
+  "name": "meru-tour",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --prefix web",
+    "dev:api": "npm run start:dev --prefix api",
+    "build": "npm run build --prefix api && npm run build --prefix web",
+    "db:up": "docker compose up -d",
+    "db:migrate": "npm run prisma:migrate --prefix api",
+    "db:seed": "npm run prisma:seed --prefix api",
+    "db:studio": "npm run prisma:studio --prefix api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
